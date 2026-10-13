@@ -122,8 +122,12 @@ fn typing_in_the_custom_box_chooses_custom() {
 fn fit_selection_zooms_so_the_selection_fills_the_window() {
     let mut h = harness();
     h.state_mut().run("edit.goTo", json!({"reference": "A1:F40"})).unwrap();
+    h.run_steps(6);
+    let viewport = h.state().grid.cells_rect.expect("the selected grid has been drawn");
     h.state_mut().open_dialog("zoom", json!({}));
     h.run_steps(6);
+    assert_eq!(values(&h)["viewWidth"], json!(viewport.width()));
+    assert_eq!(values(&h)["viewHeight"], json!(viewport.height()));
     h.get_by_label("Fit selection").click();
     h.run_steps(6);
     h.get_by_label("   OK   ").click();
@@ -133,8 +137,9 @@ fn fit_selection_zooms_so_the_selection_fills_the_window() {
     let fitted = zoom(&h);
     assert!(fitted != 100 && (10..=400).contains(&fitted), "{fitted}");
     h.state_mut().run("view.zoom", json!({"percent": 100})).unwrap();
-    let r = h.state().grid.cells_rect.expect("the grid has been drawn");
-    h.state_mut().run("view.zoomToSelection", json!({"viewWidth": r.width(), "viewHeight": r.height()})).unwrap();
+    // Zooming can change grid/header geometry. Compare against the viewport the dialog actually
+    // captured, rather than the different grid area drawn after the fitted zoom was applied.
+    h.state_mut().run("view.zoomToSelection", json!({"viewWidth": viewport.width(), "viewHeight": viewport.height()})).unwrap();
     assert_eq!(zoom(&h), fitted);
 }
 
