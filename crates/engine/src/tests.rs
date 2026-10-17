@@ -827,6 +827,25 @@ fn sort_and_filter() {
     assert_eq!(r["hiddenRows"], 1);
 }
 
+/// A numeric custom comparison hides blank cells instead of comparing them as empty text.
+#[test]
+fn filter_custom_number_comparison_hides_blanks() {
+    let hidden_rows = |s: &Session| -> Vec<u32> {
+        let mut h: Vec<u32> = s.active().unwrap().wb.sheet(0).unwrap().rows.iter().filter(|(_, r)| r.hidden).map(|(k, _)| *k).collect();
+        h.sort_unstable();
+        h
+    };
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [["n", "k"], [1, 1], [10, 2], [null, 3], ["abc", 4], [3, 5]]})).unwrap();
+    s.execute("selection.set", json!({"cell": "A1"})).unwrap();
+    s.execute("data.filter", json!({})).unwrap();
+    // Rows are 0-based: 10, the blank and "abc" sit on rows 2, 3 and 4.
+    s.execute("data.filterBy", json!({"column": "A", "custom": {"op": "<", "value": "5"}})).unwrap();
+    assert_eq!(hidden_rows(&s), vec![2, 3, 4]);
+    s.execute("data.filterBy", json!({"column": "A", "custom": {"op": "<=", "value": "5"}})).unwrap();
+    assert_eq!(hidden_rows(&s), vec![2, 3, 4]);
+}
+
 /// Top 10 keeps the top or bottom N items or percent, ties at the threshold included.
 #[test]
 fn filter_top10_items_and_percent() {
